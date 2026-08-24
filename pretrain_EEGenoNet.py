@@ -9,11 +9,10 @@ Model: EEGenoNet autoencoder (``backbones.EEGenoNet.EEGAutoEncoder``)
     - EEGenoNet Encoder + Reconstruction Decoder
 """
 
-import numpy as np, pandas as pd, os, sys, json, pickle as pkl, time, random, argparse, yaml
+import numpy as np, os, pickle as pkl, time, random, argparse, yaml
 from pathlib import Path
 
 import torch
-from torch import Tensor
 from backbones.EEGenoNet import EEGAutoEncoder
 
 from torch.utils.data import TensorDataset, DataLoader
@@ -21,7 +20,7 @@ from utils import load_pretrain_data, split_idx_pretrain
 from trainers.trainer_EEGenoNet_AE import Trainer
 from easydict import EasyDict as edict
 
-from typing import Sequence, Literal, List, Dict
+from typing import List
 
 
 ##### SETTINGS #####
