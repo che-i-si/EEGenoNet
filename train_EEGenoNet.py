@@ -1,4 +1,4 @@
-import random, time, os, argparse, numpy as np, pandas as pd, pickle
+import random, time, os, argparse, numpy as np, pandas as pd, pickle, yaml
 from pathlib import Path
 
 import torch
@@ -10,8 +10,11 @@ from utils import get_nest_cv_split_indices, load_target_data
 from easydict import EasyDict as edict
 
 MODEL_TAG = 'EEGenoNet'
+MODEL_CONFIG_PATH = Path("model_config.yaml")
+
 TARGET_DATASET = 'Stroke_MT'
 CLASS_LABELs = [ "Val/Val",    "Met" ]
+INCLUDED_FBANDs = [ 1, 2, 3 ]   # theta, alpha, beta
 DATA_SUB_IDs = list(range(1, 20+1))
 DATA_N_SAMPLEs = [ 95, 85, 81, 80, 83, 64, 62, 55, 56, 61, 60, 59, 58, 55, 66, 61, 41, 61, 41, 61 ]
 DATA_Y_TRUEs = [ 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1 ]
@@ -38,7 +41,7 @@ torch.set_float32_matmul_precision('medium')
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gened_fpath_fmt', type=str, default=str(GENED_SAMPLE_PATH))
-    parser.add_argument('--pretrained_model_savedir', type=str, default=None)
+    parser.add_argument('--pretrained_config_fpath', type=str, default=None)
     parser.add_argument('--data_load_fpath_fmt', type=str, required=True,
                         help="e.g., 'DATA_DIR/Sub{subid:02d}.npy'")
     parser.add_argument('--device', type=str, default='cuda:0')
@@ -49,50 +52,40 @@ def get_parser():
 def get_clf_args(
         data_load_fpath_fmt:str,
         gened_fpath_fmt:str|Path,
-        pretrained_model_savedir:Path|str|None=None,
-        n_classes:int|None=None,
+        pretrained_config_fpath:Path|str|None=None,
         make_dir:bool=True,
         **kwargs    ) -> edict:
 
     gened_fpath_fmt:Path                = Path(gened_fpath_fmt)
-    if pretrained_model_savedir is None:
-        pretrained_model_savedir:Path   = gened_fpath_fmt.parents[2]
-    elif isinstance(pretrained_model_savedir, str):
-        pretrained_model_savedir:Path   = Path(pretrained_model_savedir)
+    if pretrained_config_fpath is None:
+        pretrained_config_fpath:Path   = gened_fpath_fmt.parents[2] / 'pretrained_configs/pretrained.pt'
+    pretrained_config_fpath:Path   = Path(pretrained_config_fpath)
 
     ##### LOAD ARGS #####
-    with open(pretrained_model_savedir / "args_ae.pkl", 'rb') as f: args_ae = pickle.load(f)
-    args_ae.update({'PRETRAIN_MODEL_SAVE_DIR': args_ae.model_savedir, 'PRETRAIN_MODEL_NAME': args_ae.model_name,})
-    args = edict(args_ae.copy())
+    with open(MODEL_CONFIG_PATH, 'r') as f:
+        model_config = yaml.load(f, Loader=yaml.FullLoader)
+    args = edict(model_config.copy())
     ##### SETTING #####
     wktime = time.strftime('%y_%m_%d_%H_%M', time.localtime(time.time()))
     model_savedir = f'./checkpoints/{MODEL_TAG}/{wktime}/'
     if make_dir: os.makedirs(model_savedir, exist_ok=False)
     ##### UPDATE #####
-    if n_classes is None: n_classes = len(np.unique(DATA_Y_TRUEs))
     args.update({
         'target_dataset': TARGET_DATASET,
         'data_load_fpath_fmt': data_load_fpath_fmt,
         'gened_fpath_fmt': str(gened_fpath_fmt),
-        'n_minor_upsample': 'major', 'random_state': 0,
-        'apply_clf_head': True, 'n_classes': n_classes,
+        'random_state': 0,
+        'included_fband': INCLUDED_FBANDs,
         ##### TRAINING #####
+        'apply_clf_head': True,
+        'batch_size': 32,
         'clf_epochs': 100,
         'clf_lr': 1e-3,
         'clf_weight_decay': 5e-4,
         'clf_min_run_epochs': 10,
         'clf_early_stopping_patience': 5,
-        ##### MODULES #####
-        'dconv_bias': True,
-        'dconv_dropout': 0.2,
-        'k': 3,
-        'clfDec_conv_layers': [{"in_channels": 1, "out_channels": 5, "kernel_size": (args.N, 1), "bias": True}, ],
-        'clfDec_linear_layers': None,
-        'clf_batchnorm': True,
-        'clf_dropout': 0.5,
-        'clf_activation': 'softmax',
         ##### PATHS #####
-        'pretrained_config_fpath': str(gened_fpath_fmt.parents[2]/'pretrained_configs/pretrained.pt'),
+        'pretrained_config_fpath': str(pretrained_config_fpath),
         'model_savedir': model_savedir,
         'model_name': MODEL_TAG,
         'config_fpath_fmt': model_savedir+'trained_configs/testSub{subid:02d}_valSub{valsub:02d}.pt',

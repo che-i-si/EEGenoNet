@@ -35,7 +35,6 @@ def split_idx_pretrain(I,
     # -----
     if test_subject is None:
         test_subject = -100
-        assert test_subject not in set_ids
     all_idx = []
     for sub in set_ids:
         samplenum = sample_nums[sub]
@@ -208,9 +207,11 @@ def prepare_TSU_RS(
 
     Returns
     -------
-    torch.Tensor
+    (torch.Tensor, torch.Tensor)
         ``X_time``: torch.Tensor
             shape (-1, #bands, #channels, #timepoints)
+        ``I``: torch.Tensor
+            shape (-1,)
 
     """
     if isinstance(data_fpath_fmt, str): data_fpath_fmt = [data_fpath_fmt]
@@ -221,7 +222,7 @@ def prepare_TSU_RS(
     else:
         assert all([('/timeseries' in fpath) for fpath in data_fpath_fmt])
     # -----
-    X_time = []
+    X_time, I = [], []
     for sub in set_ids:
         if included_fband is None: X = np.concatenate([np.load(fpath.format(subid=sub, **kwargs))
                                                        for fpath in data_fpath_fmt])
@@ -230,8 +231,9 @@ def prepare_TSU_RS(
         # ----- EA
         # if apply_ea: X = EAforTime(X, output='real')      # X has already applied EA
         X_time.append(X)
+        I.append(torch.full((X.shape[0],), sub))
 
-    return torch.Tensor(np.concatenate(X_time))     # (-1, N, T) | (-1, F, N, T)
+    return torch.Tensor(np.concatenate(X_time)), torch.cat(I)     # (-1, N, T) | (-1, F, N, T)
 
 
 def load_target_data(
@@ -360,26 +362,28 @@ def load_pretrain_data(
 
     Returns
     -------
-    (np.ndarray, torch.Tensor)
+    (np.ndarray, torch.Tensor, torch.Tensor)
         ``set_ids``: NDArray[np.int32]
             subject ID array for all samples.
             shape (-1,)
         ``X_time``: Tensor
             shape (-1, F, N, T) or others
+        ``I``: torch.Tensor
+            shape (-1,)
     """
 
     ##### Load Data #####
     if data_function is None:
-        X = prepare_TSU_RS(
+        X, I = prepare_TSU_RS(
             dataset_fpath_fmt=dataset_fpath_fmt, set_ids=set_ids, included_fband=included_fband, **kwargs)
     else:
         if data_function_kws is None: data_function_kws = {}
-        X = data_function(dataset_fpath_fmt=dataset_fpath_fmt, set_ids=set_ids, **data_function_kws)
+        X, I = data_function(dataset_fpath_fmt=dataset_fpath_fmt, set_ids=set_ids, **data_function_kws)
     # -----
     if verbose:
         print("📁 LOAD DATASET")
         print("\t>> X:", 'x'.join([str(s) for s in X.shape]))
         print("-" * 75)
     ##### RETURN #####
-    return set_ids, X
+    return set_ids, X, I
 
