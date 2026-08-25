@@ -19,7 +19,7 @@ DATA_SUB_IDs = list(range(1, 20+1))
 DATA_N_SAMPLEs = [ 95, 85, 81, 80, 83, 64, 62, 55, 56, 61, 60, 59, 58, 55, 66, 61, 41, 61, 41, 61 ]
 DATA_Y_TRUEs = [ 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1 ]
 
-GENED_SAMPLE_PATH = Path("./checkpoints/EEGenoNet_pretrain/gened_samples/BDNFbi_1/testSub{subid:02d}_valSub{valsub:02d}_{cls}.npy")
+GENED_SAMPLE_PATH = Path("./checkpoints/EEGenoNet_pretrain/gened_samples/testSub{subid:02d}_valSub{valsub:02d}_{cls}.npy")
 # (Up-sampling) After performing sample generation first, load the model during training
 
 

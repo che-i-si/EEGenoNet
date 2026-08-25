@@ -103,7 +103,7 @@ def get_parser():
 def main(args:edict):
     model_savedir   = Path(args.model_savedir)
     # ----- SAVE ARGS
-    with open(model_savedir / "ae_args.pkl", 'wb') as f:   pkl.dump(args, f)
+    with open(model_savedir / "args_ae.pkl", 'wb') as f:   pkl.dump(args, f)
 
     ##### LOAD DATASET #####
     set_ids, X, I   = load_pretrain_data(
